@@ -15,18 +15,21 @@ export default function Dashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = storage.getUser();
-    if (!savedUser) {
+    try {
+      const savedUser = storage.getUser();
+      if (!savedUser) {
+        router.push('/');
+        return;
+      }
+      setUser(savedUser);
+      const userGroups = storage.getGroups().filter((g) => g.members.some((m) => m.id === savedUser.id));
+      setGroups(userGroups);
+    } catch (error) {
+      console.error('Error loading user/groups:', error);
       router.push('/');
-      return;
     }
-    setUser(savedUser);
-    const userGroups = storage.getGroups().filter((g) => g.members.some((m) => m.id === savedUser.id));
-    setGroups(userGroups);
-    setIsLoading(false);
   }, [router]);
 
   const handleGroupCreated = (newGroup: Group) => {
@@ -56,14 +59,6 @@ export default function Dashboard() {
     storage.clearUser();
     router.push('/');
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

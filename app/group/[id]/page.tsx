@@ -21,26 +21,29 @@ export default function GroupPage() {
   const [user, setUser] = useState<User | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
   const [isRandomMode, setIsRandomMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const savedUser = storage.getUser();
-    if (!savedUser) {
-      router.push('/');
-      return;
-    }
+    try {
+      const savedUser = storage.getUser();
+      if (!savedUser) {
+        router.push('/');
+        return;
+      }
 
-    const savedGroup = storage.getGroup(groupId);
-    if (!savedGroup) {
+      const savedGroup = storage.getGroup(groupId);
+      if (!savedGroup) {
+        router.push('/dashboard');
+        return;
+      }
+
+      setUser(savedUser);
+      setGroup(savedGroup);
+      setIsRandomMode(savedGroup.isRandomMode || false);
+    } catch (error) {
+      console.error('Error loading group:', error);
       router.push('/dashboard');
-      return;
     }
-
-    setUser(savedUser);
-    setGroup(savedGroup);
-    setIsRandomMode(savedGroup.isRandomMode || false);
-    setIsLoading(false);
   }, [groupId, router]);
 
   const handlePaymentMarked = (updatedGroup: Group) => {
@@ -61,14 +64,6 @@ export default function GroupPage() {
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   if (!group || !user) {
     return (
