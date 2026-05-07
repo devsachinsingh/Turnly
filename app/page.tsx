@@ -8,13 +8,12 @@ import { storage } from '@/lib/storage';
 
 export default function Home() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check if user exists in localStorage (client-side only)
     const savedUser = storage.getUser();
     if (savedUser) {
-      setUser(savedUser);
       router.push('/dashboard');
     } else {
       setIsLoading(false);

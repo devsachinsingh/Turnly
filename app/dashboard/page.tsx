@@ -21,12 +21,12 @@ export default function Dashboard() {
     const savedUser = storage.getUser();
     if (!savedUser) {
       router.push('/');
-    } else {
-      setUser(savedUser);
-      const userGroups = storage.getGroups().filter((g) => g.members.some((m) => m.id === savedUser.id));
-      setGroups(userGroups);
-      setIsLoading(false);
+      return;
     }
+    setUser(savedUser);
+    const userGroups = storage.getGroups().filter((g) => g.members.some((m) => m.id === savedUser.id));
+    setGroups(userGroups);
+    setIsLoading(false);
   }, [router]);
 
   const handleGroupCreated = (newGroup: Group) => {
