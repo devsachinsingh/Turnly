@@ -1,66 +1,69 @@
 'use client';
 
 import { useState } from 'react';
-import { Group, PaymentRecord } from '@/lib/types';
+import type { GroupDetail } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface MarkAsPaidButtonProps {
-  group: Group;
-  onPaymentMarked: (updatedGroup: Group) => void;
+  group: GroupDetail;
+  onPaymentMarked: (updatedGroup: GroupDetail) => void;
 }
 
 export function MarkAsPaidButton({ group, onPaymentMarked }: MarkAsPaidButtonProps) {
-  const [showModal, setShowModal] = useState(false);
+  const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleMarkAsPaid = () => {
-    if (group.members.length === 0) return;
+  const handleConfirm = async () => {
+    if (!group.nextPayer) return;
+    setLoading(true);
 
-    // Get the current payer (same logic as CurrentTurn)
-    const { getNextFairPayer } = require('@/lib/fairTurn');
-    const { getRandomPayer } = require('@/lib/randomTurn');
+    const res = await fetch(`/api/groups/${group.id}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description }),
+    });
 
-    const currentPayer = group.isRandomMode
-      ? getRandomPayer(group.members)
-      : getNextFairPayer(group.members, group.paymentHistory);
+    if (res.ok) {
+      const updated: GroupDetail = await res.json();
+      onPaymentMarked(updated);
+      setOpen(false);
+      setDescription('');
+    }
 
-    if (!currentPayer) return;
-
-    const newPayment: PaymentRecord = {
-      memberId: currentPayer.id,
-      memberName: currentPayer.name,
-      date: new Date().toISOString(),
-      description: description.trim() || undefined,
-    };
-
-    const updatedGroup = {
-      ...group,
-      paymentHistory: [...group.paymentHistory, newPayment],
-    };
-
-    onPaymentMarked(updatedGroup);
-    setShowModal(false);
-    setDescription('');
+    setLoading(false);
   };
 
   return (
     <>
-      <Button onClick={() => setShowModal(true)} size="lg" className="w-full bg-green-600 hover:bg-green-700">
+      <Button
+        onClick={() => setOpen(true)}
+        size="lg"
+        className="w-full bg-green-600 hover:bg-green-700"
+        disabled={!group.nextPayer}
+      >
         Mark as Paid
       </Button>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Mark Payment</h3>
-
-            <div className="mb-4">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="pay-description" className="block text-sm font-medium text-gray-700 mb-2">
                 What was this for? (optional)
               </label>
               <Input
-                id="description"
+                id="pay-description"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -68,18 +71,21 @@ export function MarkAsPaidButton({ group, onPaymentMarked }: MarkAsPaidButtonPro
                 autoFocus
               />
             </div>
-
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
+              <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleMarkAsPaid}>
-                Confirm
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handleConfirm}
+                disabled={loading}
+              >
+                {loading ? 'Saving…' : 'Confirm'}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
