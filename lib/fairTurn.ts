@@ -6,46 +6,37 @@ export function getNextFairPayer(
 ): Member | null {
   if (members.length === 0) return null;
 
-  // Count how many times each member has paid
   const paymentCounts: Record<string, number> = {};
   members.forEach((member) => {
     paymentCounts[member.id] = 0;
   });
 
   paymentHistory.forEach((payment) => {
-    if (paymentCounts.hasOwnProperty(payment.memberId)) {
+    if (Object.prototype.hasOwnProperty.call(paymentCounts, payment.memberId)) {
       paymentCounts[payment.memberId]++;
     }
   });
 
-  // Find minimum payment count
   const minCount = Math.min(...Object.values(paymentCounts));
+  const candidates = members.filter((m) => paymentCounts[m.id] === minCount);
 
-  // Get all members with minimum payment count
-  const candidatesWithMinCount = members.filter((m) => paymentCounts[m.id] === minCount);
+  if (candidates.length === 1) return candidates[0];
 
-  // If only one candidate, return it
-  if (candidatesWithMinCount.length === 1) {
-    return candidatesWithMinCount[0];
-  }
-
-  // Tie-breaker: pick the one who paid least recently
-  let leastRecentPayer = candidatesWithMinCount[0];
+  let leastRecentPayer = candidates[0];
   let leastRecentDate = new Date('2099-12-31');
 
-  for (const candidate of candidatesWithMinCount) {
+  for (const candidate of candidates) {
     const lastPayment = paymentHistory
       .filter((p) => p.memberId === candidate.id)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      .sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0];
 
     if (lastPayment) {
-      const lastDate = new Date(lastPayment.date);
+      const lastDate = new Date(lastPayment.paidAt);
       if (lastDate < leastRecentDate) {
         leastRecentDate = lastDate;
         leastRecentPayer = candidate;
       }
     } else {
-      // Never paid before - prefer them
       return candidate;
     }
   }
