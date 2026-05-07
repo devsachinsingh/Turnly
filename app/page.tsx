@@ -22,7 +22,6 @@ export default function Home() {
 
   const handleUserSet = (newUser: User) => {
     storage.setUser(newUser);
-    setUser(newUser);
     router.push('/dashboard');
   };
 
