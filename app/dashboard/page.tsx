@@ -1,136 +1,88 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User, Group } from '@/lib/types';
-import { storage } from '@/lib/storage';
+import { signOut } from 'next-auth/react';
+import { GroupSummary } from '@/lib/types';
 import { GroupCreator } from '@/components/GroupCreator';
 import { GroupJoiner } from '@/components/GroupJoiner';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 export default function Dashboard() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const { data: session } = useSession();
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedUser = storage.getUser();
-      if (!savedUser) {
-        router.push('/');
-        return;
-      }
-      setUser(savedUser);
-      const userGroups = storage.getGroups().filter((g) => g.members.some((m) => m.id === savedUser.id));
-      setGroups(userGroups);
-    } catch (error) {
-      console.error('Error loading user/groups:', error);
-      router.push('/');
-    }
-  }, [router]);
+    fetch('/api/groups')
+      .then((r) => r.json())
+      .then(setGroups)
+      .catch(console.error);
+  }, []);
 
-  const handleGroupCreated = (newGroup: Group) => {
-    // Add current user as first member
-    if (user) {
-      newGroup.members.push({
-        id: user.id,
-        name: user.name,
-        joinedDate: new Date().toISOString(),
-      });
-    }
-    storage.addGroup(newGroup);
-    setGroups([...groups, newGroup]);
+  const refreshGroups = () =>
+    fetch('/api/groups').then((r) => r.json()).then(setGroups).catch(console.error);
+
+  const handleGroupCreated = (newGroup: GroupSummary) => {
+    setGroups((prev) => [newGroup, ...prev]);
     setShowCreate(false);
   };
 
-  const handleGroupJoined = (joinedGroup: Group) => {
-    const updatedGroups = groups.map((g) => (g.id === joinedGroup.id ? joinedGroup : g));
-    if (!updatedGroups.find((g) => g.id === joinedGroup.id)) {
-      updatedGroups.push(joinedGroup);
-    }
-    setGroups(updatedGroups);
+  const handleGroupJoined = () => {
+    refreshGroups();
     setShowJoin(false);
-  };
-
-  const handleLogout = () => {
-    storage.clearUser();
-    router.push('/');
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Turnly</h1>
-            <p className="text-sm text-gray-600">Welcome, {user?.name}</p>
+            <p className="text-sm text-gray-600">Welcome, {session?.user?.name}</p>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button variant="outline" onClick={() => signOut({ callbackUrl: '/' })}>
             Logout
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Button
-            onClick={() => setShowCreate(true)}
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
+          <Button onClick={() => setShowCreate(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
             + Create Group
           </Button>
-          <Button
-            onClick={() => setShowJoin(true)}
-            variant="outline"
-            size="lg"
-          >
+          <Button onClick={() => setShowJoin(true)} variant="outline" size="lg">
             Join Group
           </Button>
         </div>
 
-        {/* Modals */}
-        {showCreate && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <GroupCreator onGroupCreated={handleGroupCreated} />
-                <Button
-                  variant="outline"
-                  className="w-full mt-4"
-                  onClick={() => setShowCreate(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create a Group</DialogTitle>
+            </DialogHeader>
+            <GroupCreator onGroupCreated={handleGroupCreated} />
+          </DialogContent>
+        </Dialog>
 
-        {showJoin && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full">
-              <div className="p-6">
-                {user && <GroupJoiner currentUser={user} onGroupJoined={handleGroupJoined} />}
-                <Button
-                  variant="outline"
-                  className="w-full mt-4"
-                  onClick={() => setShowJoin(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <Dialog open={showJoin} onOpenChange={setShowJoin}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Join a Group</DialogTitle>
+            </DialogHeader>
+            <GroupJoiner onGroupJoined={handleGroupJoined} />
+          </DialogContent>
+        </Dialog>
 
-        {/* Groups Grid */}
         {groups.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-2xl font-semibold text-gray-900 mb-2">No groups yet</p>
@@ -149,8 +101,8 @@ export default function Dashboard() {
                     <p className="text-gray-600 text-sm mb-4">{group.description}</p>
                   )}
                   <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>{group.members.length} member{group.members.length !== 1 ? 's' : ''}</span>
-                    <span>{group.paymentHistory.length} payment{group.paymentHistory.length !== 1 ? 's' : ''}</span>
+                    <span>{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
+                    <span>{group.paymentCount} payment{group.paymentCount !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               </Link>
