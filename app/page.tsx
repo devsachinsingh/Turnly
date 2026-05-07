@@ -1,34 +1,10 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User } from '@/lib/types';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import { UserSetup } from '@/components/UserSetup';
-import { storage } from '@/lib/storage';
 
-export default function Home() {
-  const router = useRouter();
+export default async function Home() {
+  const session = await auth();
+  if (session?.user) redirect('/dashboard');
 
-  useEffect(() => {
-    // Check if user exists in localStorage on mount
-    try {
-      const savedUser = storage.getUser();
-      if (savedUser) {
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error('Error checking user:', error);
-    }
-  }, [router]);
-
-  const handleUserSet = (newUser: User) => {
-    try {
-      storage.setUser(newUser);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Error setting user:', error);
-    }
-  };
-
-  return <UserSetup onUserSet={handleUserSet} />;
+  return <UserSetup />;
 }
