@@ -1,10 +1,10 @@
 'use client';
 
-import { Group } from '@/lib/types';
+import type { GroupDetail } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
 interface GroupInfoProps {
-  group: Group;
+  group: GroupDetail;
   onCopyCode: () => void;
 }
 

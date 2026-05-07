@@ -1,21 +1,13 @@
 'use client';
 
-import { Group } from '@/lib/types';
+import type { GroupDetail } from '@/lib/types';
 
 interface RandomModeToggleProps {
-  group: Group;
-  onToggle: (updatedGroup: Group) => void;
+  group: GroupDetail;
+  onToggle: () => void;
 }
 
 export function RandomModeToggle({ group, onToggle }: RandomModeToggleProps) {
-  const handleToggle = () => {
-    const updatedGroup = {
-      ...group,
-      isRandomMode: !group.isRandomMode,
-    };
-    onToggle(updatedGroup);
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 flex items-center justify-between">
       <div>
@@ -27,7 +19,7 @@ export function RandomModeToggle({ group, onToggle }: RandomModeToggleProps) {
         </p>
       </div>
       <button
-        onClick={handleToggle}
+        onClick={onToggle}
         className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
           group.isRandomMode ? 'bg-blue-600' : 'bg-gray-300'
         }`}
