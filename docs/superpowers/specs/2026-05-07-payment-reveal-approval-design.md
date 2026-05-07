@@ -17,19 +17,17 @@ Three features added to the core payment flow:
 
 ## Database Schema Changes
 
-### `payment_records` — 4 new columns
+### `payment_records` — 3 new columns
 
 ```sql
-amount               numeric(10,2)  NOT NULL
-status               text           NOT NULL DEFAULT 'pending'
-                       -- values: 'pending' | 'approved' | 'cancelled'
-expires_at           timestamp      NOT NULL
-                       -- set to created_at + INTERVAL '10 days' on insert
-submitted_by_user_id uuid           REFERENCES users(id) ON DELETE SET NULL
-                       -- the member who clicked "Mark as Paid" (may differ from the payer)
+amount      numeric(10,2)  NOT NULL
+status      text           NOT NULL DEFAULT 'pending'
+              -- values: 'pending' | 'approved' | 'cancelled'
+expires_at  timestamp      NOT NULL
+              -- set to created_at + INTERVAL '10 days' on insert
 ```
 
-**Distinction:** `user_id` (existing column) = the computed payer (whose turn it is). `submitted_by_user_id` = the group member who submitted the request. Cancel rights belong to the submitter.
+**Rule:** Only the payer themselves can submit "Mark as Paid" for their own turn. The payer (`user_id`) and the submitter are always the same person. Cancel rights therefore belong to the payer.
 
 ### New table: `payment_approvals`
 
@@ -46,6 +44,8 @@ payment_approvals
 ### Drizzle migration
 
 Add `amount`, `status`, `expiresAt` to `paymentRecords` table definition. Create `paymentApprovals` table. Run `drizzle-kit generate` + `drizzle-kit migrate`.
+
+> Note: `submitted_by_user_id` is not needed — only the payer can submit their own payment.
 
 ---
 
@@ -81,14 +81,15 @@ On every `GET /api/groups/[id]` request, before building the response, delete al
 
 **Validation:**
 - `amount` required, must be > 0
-- Group must have ≥ 1 member (solo auto-approves, no block)
+- Caller must be the **computed next payer** — server verifies `session.user.id === getNextFairPayer/getRandomPayer result`. If not, return 403 "It's not your turn".
 - Count of pending payments for this group must be < 3 (else 400 with freeze message)
 
 **Logic:**
 1. Compute payer via `getNextFairPayer` (fair) or `getRandomPayer` (random) against current DB state — **payer is locked at submit time** (fixes the random-mode double-randomization bug).
-2. Insert `payment_records` row with `status = 'pending'`, `expires_at = now() + 10 days`.
-3. If group has exactly 1 member → immediately set `status = 'approved'` (auto-approve).
-4. Return updated group detail including new pending payment.
+2. Verify caller IS that computed payer (403 if not).
+3. Insert `payment_records` row with `status = 'pending'`, `expires_at = now() + 10 days`.
+4. If group has exactly 1 member → immediately set `status = 'approved'` (auto-approve).
+5. Return updated group detail including new pending payment.
 
 ### New: `POST /api/groups/[id]/payments/[paymentId]/approve`
 
@@ -106,8 +107,8 @@ On every `GET /api/groups/[id]` request, before building the response, delete al
 **Auth:** Caller must be a group member.
 
 **Logic:**
-- If caller is the **submitter** (`submitted_by_user_id`) → immediately set `status = 'cancelled'`. Return updated group detail.
-- Otherwise → insert `{ action: 'cancel_vote' }`. Count total `cancel_vote` actions for non-submitter members. If count ≥ (total members − 1) → set `status = 'cancelled'`. Return updated group detail.
+- If caller is the **payer** (`payment.userId === session.user.id`) → immediately set `status = 'cancelled'`. Return updated group detail.
+- Otherwise → insert `{ action: 'cancel_vote' }`. Count total `cancel_vote` actions. If count ≥ (total members − 1) → set `status = 'cancelled'`. Return updated group detail.
 
 ### Modified: `GET /api/groups/[id]`
 
@@ -130,9 +131,8 @@ Each group summary includes `pendingCount: number` — count of pending payments
 ```ts
 interface PendingPayment {
   id: string;
-  payerId: string;
+  payerId: string;       // also the submitter — always the same person
   payerName: string;
-  submittedByUserId: string;  // who clicked "Mark as Paid"
   amount: number;
   description?: string | null;
   expiresAt: string;          // ISO string
@@ -177,8 +177,9 @@ interface PaymentRecord {
 - When `group.nextPayer?.id` changes (new turn after a payment is approved), `isRevealed` resets to `false`.
 - Once revealed, stays revealed for the rest of the session on that turn.
 
-### `MarkAsPaidButton` — Amount field
+### `MarkAsPaidButton` — Amount field + payer-only access
 
+- Button is **only enabled** when the logged-in user is the current `group.nextPayer` (compare `session.user.id === group.nextPayer?.id`). For all other members it is hidden or shows "Waiting for [Name] to record their payment".
 - Dialog adds a required **Amount** numeric input above the description field.
 - Submit disabled if amount is empty or ≤ 0.
 - If `group.isFrozen` → button is disabled with tooltip "Approve or cancel pending payments first".
@@ -202,7 +203,7 @@ Shown on the group detail page between `CurrentTurn` and `MarkAsPaidButton` when
   - Current user is the payer (`session.user.id === payment.payerId`)
   - Current user has already approved (`payment.approvals.some(a => a.userId === session.user.id)`)
 - **Cancel button**:
-  - If current user is the **submitter** (`payment.submittedByUserId === session.user.id`) → label "Cancel Request" (immediate cancellation)
+  - If current user is the **payer** (`payment.payerId === session.user.id`) → label "Cancel Request" (immediate cancellation)
   - Otherwise → label "Vote to Cancel"
   - Disabled if current user has already cast a cancel vote
 
@@ -223,10 +224,11 @@ Shown on the group detail page between `CurrentTurn` and `MarkAsPaidButton` when
 | 3+ member group | 2 approvals required; cancel needs all-others vote |
 | 3 simultaneous pending | Group frozen, Mark as Paid disabled |
 | Payment expires (10 days) | Deleted on next GET, turn unblocked |
-| Creator cancels own request | Immediate cancellation, no vote needed |
+| Payer cancels own request | Immediate cancellation, no vote needed |
 | All others vote cancel | Cancellation triggered when cancel_votes = members − 1 |
-| Payer tries to approve | Blocked server-side (403) + button disabled client-side |
+| Payer tries to approve own | Blocked server-side (403) + button disabled client-side |
 | User approves twice | Blocked by UNIQUE constraint (409) + button disabled after first vote |
+| Non-payer tries to submit payment | Blocked server-side (403 "It's not your turn") + button hidden client-side |
 | Random mode payer mismatch | Fixed — payer computed and locked on POST, not re-randomized on reveal |
 | fairTurn counts pending | Fixed — only approved payments passed to fairTurn |
 | Solo cancellation vote | N/A — auto-approved, cancellation not applicable |
