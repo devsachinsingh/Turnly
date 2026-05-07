@@ -1,29 +1,44 @@
 export interface User {
   id: string;
-  name: string;
+  name: string | null;
+  email: string;
 }
 
 export interface Member {
   id: string;
   name: string;
-  joinedDate: string;
+  joinedAt: string;
 }
 
 export interface PaymentRecord {
+  id: string;
   memberId: string;
   memberName: string;
-  date: string;
-  description?: string;
+  paidAt: string;
+  description?: string | null;
 }
 
-export interface Group {
+export interface GroupSummary {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   emoji: string;
   code: string;
+  isRandomMode: boolean;
+  createdAt: string;
+  memberCount: number;
+  paymentCount: number;
+}
+
+export interface GroupDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  emoji: string;
+  code: string;
+  isRandomMode: boolean;
+  createdAt: string;
   members: Member[];
   paymentHistory: PaymentRecord[];
-  createdAt: string;
-  isRandomMode?: boolean;
+  nextPayer: { id: string; name: string } | null;
 }
