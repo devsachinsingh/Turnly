@@ -1,13 +1,15 @@
 'use client';
 
-import { PaymentRecord } from '@/lib/types';
+import type { PaymentRecord } from '@/lib/types';
 
 interface PaymentHistoryProps {
   history: PaymentRecord[];
 }
 
 export function PaymentHistory({ history }: PaymentHistoryProps) {
-  const sortedHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sorted = [...history].sort(
+    (a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime(),
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -26,11 +28,13 @@ export function PaymentHistory({ history }: PaymentHistoryProps) {
               </tr>
             </thead>
             <tbody>
-              {sortedHistory.map((record, index) => (
-                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+              {sorted.map((record) => (
+                <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-3 font-semibold text-gray-900">{record.memberName}</td>
-                  <td className="py-3 px-3 text-gray-600">{new Date(record.date).toLocaleDateString()}</td>
-                  <td className="py-3 px-3 text-gray-600">{record.description || '—'}</td>
+                  <td className="py-3 px-3 text-gray-600">
+                    {new Date(record.paidAt).toLocaleDateString()}
+                  </td>
+                  <td className="py-3 px-3 text-gray-600">{record.description ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
