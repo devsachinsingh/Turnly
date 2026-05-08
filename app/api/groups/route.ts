@@ -123,8 +123,18 @@ export async function POST(req: NextRequest) {
 
   const [newGroup] = await db.select().from(groups).where(eq(groups.id, groupId));
 
-  return NextResponse.json(
-    { ...newGroup, memberCount: 1, paymentCount: 0, pendingCount: 0 },
-    { status: 201 },
-  );
+  const result = {
+    id: newGroup.id,
+    name: newGroup.name,
+    description: newGroup.description,
+    emoji: newGroup.emoji,
+    code: newGroup.code,
+    isRandomMode: newGroup.isRandomMode,
+    createdAt: newGroup.createdAt?.toISOString() ?? new Date().toISOString(),
+    memberCount: 1,
+    paymentCount: 0,
+    pendingCount: 0,
+  };
+
+  return NextResponse.json(result, { status: 201 });
 }

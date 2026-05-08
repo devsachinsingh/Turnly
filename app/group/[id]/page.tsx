@@ -41,11 +41,23 @@ export default function GroupPage() {
   useEffect(() => {
     fetch(`/api/groups/${id}`)
       .then((r) => {
-        if (!r.ok) { router.push('/dashboard'); return null; }
+        if (!r.ok) {
+          console.log("[v0] Failed to fetch group, redirecting to dashboard");
+          router.push('/dashboard');
+          return null;
+        }
         return r.json();
       })
-      .then((data) => data && setGroup(data))
-      .catch(() => router.push('/dashboard'));
+      .then((data) => {
+        if (data) {
+          console.log("[v0] Group loaded successfully:", data);
+          setGroup(data);
+        }
+      })
+      .catch((error) => {
+        console.log("[v0] Error fetching group:", error);
+        router.push('/dashboard');
+      });
   }, [id, router]);
 
   const handleToggleRandomMode = async () => {
