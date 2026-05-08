@@ -16,6 +16,19 @@ export interface PaymentRecord {
   memberName: string;
   paidAt: string;
   description?: string | null;
+  amount: number;
+  status: 'pending' | 'approved' | 'cancelled';
+}
+
+export interface PendingPayment {
+  id: string;
+  payerId: string;
+  payerName: string;
+  amount: number;
+  description?: string | null;
+  expiresAt: string;
+  approvals: { userId: string }[];
+  cancelVotes: { userId: string }[];
 }
 
 export interface GroupSummary {
@@ -28,6 +41,7 @@ export interface GroupSummary {
   createdAt: string;
   memberCount: number;
   paymentCount: number;
+  pendingCount: number;
 }
 
 export interface GroupDetail {
@@ -41,4 +55,6 @@ export interface GroupDetail {
   members: Member[];
   paymentHistory: PaymentRecord[];
   nextPayer: { id: string; name: string } | null;
+  pendingPayments: PendingPayment[];
+  isFrozen: boolean;
 }
