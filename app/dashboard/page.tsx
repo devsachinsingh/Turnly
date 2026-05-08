@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { GroupSummary } from '@/lib/types';
 import { GroupCreator } from '@/components/GroupCreator';
 import { GroupJoiner } from '@/components/GroupJoiner';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -13,23 +15,35 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 
 export default function Dashboard() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
+  // Redirect to onboarding if user has no display name yet.
+  useEffect(() => {
+    if (session && !session.user?.name) {
+      router.replace('/onboarding');
+    }
+  }, [session, router]);
+
   useEffect(() => {
     fetch('/api/groups')
-      .then((r) => r.json())
-      .then(setGroups)
-      .catch(console.error);
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setGroups(Array.isArray(data) ? data : []))
+      .catch(() => setGroups([]))
+      .finally(() => setLoadingGroups(false));
   }, []);
 
   const refreshGroups = () =>
-    fetch('/api/groups').then((r) => r.json()).then(setGroups).catch(console.error);
+    fetch('/api/groups')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setGroups(Array.isArray(data) ? data : []))
+      .catch(() => {});
 
   const handleGroupCreated = (newGroup: GroupSummary) => {
     setGroups((prev) => [newGroup, ...prev]);
@@ -41,13 +55,15 @@ export default function Dashboard() {
     setShowJoin(false);
   };
 
+  const displayName = session?.user?.name || session?.user?.email?.split('@')[0] || 'there';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Turnly</h1>
-            <p className="text-sm text-gray-600">Welcome, {session?.user?.name}</p>
+            <p className="text-sm text-gray-600">Welcome, {displayName}</p>
           </div>
           <Button variant="outline" onClick={() => signOut({ callbackUrl: '/' })}>
             Logout
@@ -83,7 +99,23 @@ export default function Dashboard() {
           </DialogContent>
         </Dialog>
 
-        {groups.length === 0 ? (
+        {loadingGroups ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-lg p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <Skeleton className="h-6 w-32" />
+                </div>
+                <Skeleton className="h-4 w-full" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-2xl font-semibold text-gray-900 mb-2">No groups yet</p>
             <p className="text-gray-600 mb-8">Create a new group or join an existing one to get started!</p>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { NextAuthProvider } from '@/components/session-provider';
+import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'] });
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${geist.className} antialiased`}>
         <NextAuthProvider>
           {children}
+          <Toaster />
         </NextAuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

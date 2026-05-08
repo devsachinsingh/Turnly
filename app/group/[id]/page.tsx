@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import type { GroupDetail } from '@/lib/types';
 import { CurrentTurn } from '@/components/CurrentTurn';
 import { GroupInfo } from '@/components/GroupInfo';
@@ -10,14 +11,31 @@ import { PaymentHistory } from '@/components/PaymentHistory';
 import { MarkAsPaidButton } from '@/components/MarkAsPaidButton';
 import { RandomModeToggle } from '@/components/RandomModeToggle';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 export default function GroupPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  const currentUserId = session?.user?.id ?? '';
+
+  // Redirect to onboarding if user has no display name yet.
+  useEffect(() => {
+    if (session && !session.user?.name) {
+      router.replace('/onboarding');
+    }
+  }, [session, router]);
 
   useEffect(() => {
     fetch(`/api/groups/${id}`)
@@ -50,6 +68,7 @@ export default function GroupPage() {
 
   const handleLeave = async () => {
     if (!group) return;
+    setLeaving(true);
     await fetch(`/api/groups/${group.id}`, { method: 'DELETE' });
     router.push('/dashboard');
   };
@@ -77,8 +96,12 @@ export default function GroupPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <CurrentTurn group={group} />
-            <MarkAsPaidButton group={group} onPaymentMarked={handlePaymentMarked} />
+            <CurrentTurn group={group} currentUserId={currentUserId} />
+            <MarkAsPaidButton
+              group={group}
+              currentUserId={currentUserId}
+              onPaymentMarked={handlePaymentMarked}
+            />
             <RandomModeToggle group={group} onToggle={handleToggleRandomMode} />
             <PaymentHistory history={group.paymentHistory} />
           </div>
@@ -94,13 +117,43 @@ export default function GroupPage() {
             <Button
               variant="outline"
               className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleLeave}
+              onClick={() => setShowLeaveConfirm(true)}
             >
               Leave Group
             </Button>
           </div>
         </div>
       </main>
+
+      <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Leave &quot;{group.name}&quot;?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 mt-1">
+            {group.members.length === 1
+              ? 'You are the last member. Leaving will permanently delete this group and all its payment history.'
+              : 'You will lose access to this group. You can rejoin later using the group code.'}
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowLeaveConfirm(false)}
+              disabled={leaving}
+            >
+              Stay
+            </Button>
+            <Button
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleLeave}
+              disabled={leaving}
+            >
+              {leaving ? 'Leaving…' : 'Leave'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

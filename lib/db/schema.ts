@@ -63,6 +63,8 @@ export const groups = pgTable('group', {
   code: text('code').unique().notNull(),
   isRandomMode: boolean('is_random_mode').notNull().default(false),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  // Locked random payer so UI and server always agree on who pays next in random mode.
+  currentRandomPayerId: text('current_random_payer_id').references(() => users.id, { onDelete: 'set null' }),
 });
 
 export const groupMembers = pgTable(

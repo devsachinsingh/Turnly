@@ -5,9 +5,10 @@ import type { GroupDetail } from '@/lib/types';
 
 interface CurrentTurnProps {
   group: GroupDetail;
+  currentUserId: string;
 }
 
-export function CurrentTurn({ group }: CurrentTurnProps) {
+export function CurrentTurn({ group, currentUserId }: CurrentTurnProps) {
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,8 @@ export function CurrentTurn({ group }: CurrentTurnProps) {
     );
   }
 
+  const isYourTurn = group.nextPayer.id === currentUserId;
+
   return (
     <div className="relative">
       {showCelebration && (
@@ -36,8 +39,13 @@ export function CurrentTurn({ group }: CurrentTurnProps) {
         <div className="flex items-center justify-center gap-3 mb-4">
           <span className="text-6xl">{group.emoji}</span>
         </div>
-        <h2 className="text-5xl font-bold mb-2">{group.nextPayer.name}</h2>
-        <p className="text-lg opacity-90">
+        <h2 className="text-5xl font-bold mb-2">
+          {isYourTurn ? 'You!' : group.nextPayer.name}
+        </h2>
+        {isYourTurn && (
+          <p className="text-lg opacity-80">({group.nextPayer.name})</p>
+        )}
+        <p className="text-lg opacity-90 mt-2">
           {group.isRandomMode ? '🎲 Random Selection' : 'Fair Turn'}
         </p>
       </div>

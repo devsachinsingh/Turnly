@@ -46,9 +46,19 @@ async function buildGroupDetail(groupId: string) {
     description: p.description,
   }));
 
-  const nextPayer = group.isRandomMode
-    ? getRandomPayer(members)
-    : getNextFairPayer(members, paymentHistory);
+  let nextPayer: Member | null;
+  if (group.isRandomMode) {
+    if (group.currentRandomPayerId) {
+      nextPayer = members.find((m) => m.id === group.currentRandomPayerId) ?? null;
+    } else {
+      nextPayer = getRandomPayer(members);
+      if (nextPayer) {
+        await db.update(groups).set({ currentRandomPayerId: nextPayer.id }).where(eq(groups.id, groupId));
+      }
+    }
+  } else {
+    nextPayer = getNextFairPayer(members, paymentHistory);
+  }
 
   return { ...group, members, paymentHistory, nextPayer };
 }
@@ -80,7 +90,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'isRandomMode must be boolean' }, { status: 400 });
   }
 
-  await db.update(groups).set({ isRandomMode: body.isRandomMode }).where(eq(groups.id, id));
+  // When switching modes, clear the locked random payer so a fresh pick happens.
+  await db
+    .update(groups)
+    .set({ isRandomMode: body.isRandomMode, currentRandomPayerId: null })
+    .where(eq(groups.id, id));
 
   const detail = await buildGroupDetail(id);
   return NextResponse.json(detail);
