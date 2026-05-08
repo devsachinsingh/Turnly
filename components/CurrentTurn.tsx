@@ -5,16 +5,23 @@ import type { GroupDetail } from '@/lib/types';
 
 interface CurrentTurnProps {
   group: GroupDetail;
+  currentUserId: string;
 }
 
-export function CurrentTurn({ group }: CurrentTurnProps) {
+export function CurrentTurn({ group, currentUserId }: CurrentTurnProps) {
+  const [isRevealed, setIsRevealed] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    setShowCelebration(true);
-    const timer = setTimeout(() => setShowCelebration(false), 2000);
-    return () => clearTimeout(timer);
+    setIsRevealed(false);
+    setShowCelebration(false);
   }, [group.nextPayer?.id]);
+
+  const handleReveal = () => {
+    setIsRevealed(true);
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 2000);
+  };
 
   if (!group.nextPayer) {
     return (
@@ -24,10 +31,12 @@ export function CurrentTurn({ group }: CurrentTurnProps) {
     );
   }
 
+  const isYourTurn = group.nextPayer.id === currentUserId;
+
   return (
     <div className="relative">
       {showCelebration && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="text-6xl animate-bounce">🎉</div>
         </div>
       )}
@@ -36,8 +45,29 @@ export function CurrentTurn({ group }: CurrentTurnProps) {
         <div className="flex items-center justify-center gap-3 mb-4">
           <span className="text-6xl">{group.emoji}</span>
         </div>
-        <h2 className="text-5xl font-bold mb-2">{group.nextPayer.name}</h2>
-        <p className="text-lg opacity-90">
+
+        {isRevealed ? (
+          <>
+            <h2 className="text-5xl font-bold mb-2">
+              {isYourTurn ? 'You!' : group.nextPayer.name}
+            </h2>
+            {isYourTurn && (
+              <p className="text-lg opacity-80">({group.nextPayer.name})</p>
+            )}
+          </>
+        ) : (
+          <div className="cursor-pointer select-none" onClick={handleReveal}>
+            <div
+              className="text-5xl font-bold mb-2 transition-all duration-300"
+              style={{ filter: 'blur(12px)' }}
+            >
+              {group.nextPayer.name}
+            </div>
+            <p className="text-sm opacity-80 mt-2">👆 Tap to reveal</p>
+          </div>
+        )}
+
+        <p className="text-lg opacity-90 mt-3">
           {group.isRandomMode ? '🎲 Random Selection' : 'Fair Turn'}
         </p>
       </div>
