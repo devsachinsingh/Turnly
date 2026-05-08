@@ -10,6 +10,7 @@ import { MembersList } from '@/components/MembersList';
 import { PaymentHistory } from '@/components/PaymentHistory';
 import { MarkAsPaidButton } from '@/components/MarkAsPaidButton';
 import { RandomModeToggle } from '@/components/RandomModeToggle';
+import { PendingApprovals } from '@/components/PendingApprovals';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,8 +47,6 @@ export default function GroupPage() {
       .then((data) => data && setGroup(data))
       .catch(() => router.push('/dashboard'));
   }, [id, router]);
-
-  const handlePaymentMarked = (updated: GroupDetail) => setGroup(updated);
 
   const handleToggleRandomMode = async () => {
     if (!group) return;
@@ -97,11 +96,8 @@ export default function GroupPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <CurrentTurn group={group} currentUserId={currentUserId} />
-            <MarkAsPaidButton
-              group={group}
-              currentUserId={currentUserId}
-              onPaymentMarked={handlePaymentMarked}
-            />
+            <PendingApprovals group={group} currentUserId={currentUserId} onUpdate={setGroup} />
+            <MarkAsPaidButton group={group} currentUserId={currentUserId} onPaymentMarked={setGroup} />
             <RandomModeToggle group={group} onToggle={handleToggleRandomMode} />
             <PaymentHistory history={group.paymentHistory} />
           </div>

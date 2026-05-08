@@ -19,6 +19,7 @@ interface MarkAsPaidButtonProps {
 
 export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: MarkAsPaidButtonProps) {
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,12 +28,14 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
 
   const handleOpen = () => {
     setError('');
+    setAmount('');
     setDescription('');
     setOpen(true);
   };
 
   const handleConfirm = async () => {
-    if (!group.nextPayer) return;
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || parsedAmount <= 0) return;
     setLoading(true);
     setError('');
 
@@ -40,13 +43,14 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
       const res = await fetch(`/api/groups/${group.id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ amount: parsedAmount, description }),
       });
 
       if (res.ok) {
         const updated: GroupDetail = await res.json();
         onPaymentMarked(updated);
         setOpen(false);
+        setAmount('');
         setDescription('');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -73,8 +77,10 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
         onClick={handleOpen}
         size="lg"
         className="w-full bg-green-600 hover:bg-green-700"
+        disabled={group.isFrozen}
+        title={group.isFrozen ? 'Approve or cancel pending payments first' : undefined}
       >
-        Mark as Paid
+        {group.isFrozen ? '⚠️ Approve pending payments first' : 'Mark as Paid'}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -87,6 +93,21 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
               Recording payment for <span className="font-semibold">{group.nextPayer?.name}</span>
             </p>
             <div>
+              <label htmlFor="pay-amount" className="block text-sm font-medium text-gray-700 mb-2">
+                Amount <span className="text-red-500">*</span>
+              </label>
+              <Input
+                id="pay-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(e) => { setAmount(e.target.value); setError(''); }}
+                placeholder="e.g. 450"
+                autoFocus
+              />
+            </div>
+            <div>
               <label htmlFor="pay-description" className="block text-sm font-medium text-gray-700 mb-2">
                 What was this for? (optional)
               </label>
@@ -95,9 +116,8 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
                 type="text"
                 value={description}
                 onChange={(e) => { setDescription(e.target.value); setError(''); }}
-                placeholder="e.g., Tea round, Party drinks, Lunch order"
+                placeholder="e.g. Tea round, Party drinks, Lunch order"
                 maxLength={200}
-                autoFocus
               />
             </div>
             {error && (
@@ -112,7 +132,7 @@ export function MarkAsPaidButton({ group, currentUserId, onPaymentMarked }: Mark
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700"
                 onClick={handleConfirm}
-                disabled={loading}
+                disabled={loading || !amount || parseFloat(amount) <= 0}
               >
                 {loading ? 'Saving…' : 'Confirm'}
               </Button>
