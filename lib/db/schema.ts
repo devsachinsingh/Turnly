@@ -1,5 +1,5 @@
 import {
-  pgTable, text, boolean, timestamp, integer, primaryKey, unique,
+  pgTable, text, boolean, timestamp, integer, primaryKey, unique, numeric,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import type { AdapterAccountType } from '@auth/core/adapters';
@@ -63,6 +63,7 @@ export const groups = pgTable('group', {
   code: text('code').unique().notNull(),
   isRandomMode: boolean('is_random_mode').notNull().default(false),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  currentRandomPayerId: text('current_random_payer_id').references(() => users.id, { onDelete: 'set null' }),
 });
 
 export const groupMembers = pgTable(
@@ -85,7 +86,24 @@ export const paymentRecords = pgTable('payment_record', {
   memberName: text('member_name').notNull(),
   description: text('description'),
   paidAt: timestamp('paid_at', { mode: 'date' }).defaultNow().notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  status: text('status').notNull().default('pending'),
+  expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
 });
+
+export const paymentApprovals = pgTable(
+  'payment_approval',
+  {
+    id: text('id').notNull().primaryKey().$defaultFn(() => crypto.randomUUID()),
+    paymentId: text('payment_id').notNull().references(() => paymentRecords.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  },
+  (table) => ({
+    uniquePaymentUser: unique().on(table.paymentId, table.userId),
+  }),
+);
 
 // ── Relations ──────────────────────────────────────────────────────────
 
@@ -99,7 +117,13 @@ export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
   user: one(users, { fields: [groupMembers.userId], references: [users.id] }),
 }));
 
-export const paymentRecordsRelations = relations(paymentRecords, ({ one }) => ({
+export const paymentRecordsRelations = relations(paymentRecords, ({ one, many }) => ({
   group: one(groups, { fields: [paymentRecords.groupId], references: [groups.id] }),
   user: one(users, { fields: [paymentRecords.userId], references: [users.id] }),
+  approvals: many(paymentApprovals),
+}));
+
+export const paymentApprovalsRelations = relations(paymentApprovals, ({ one }) => ({
+  payment: one(paymentRecords, { fields: [paymentApprovals.paymentId], references: [paymentRecords.id] }),
+  user: one(users, { fields: [paymentApprovals.userId], references: [users.id] }),
 }));
