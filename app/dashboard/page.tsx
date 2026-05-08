@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import Link from 'next/link';
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -123,29 +122,31 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.map((group) => (
-              <Link key={group.id} href={`/group/${group.id}`}>
-                <div className="relative bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 cursor-pointer h-full">
-                  {group.pendingCount > 0 && (
-                    <div
-                      className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center"
-                      title={`${group.pendingCount} payment${group.pendingCount !== 1 ? 's' : ''} need your approval`}
-                    >
-                      {group.pendingCount}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-4xl">{group.emoji}</span>
-                    <h3 className="text-xl font-bold text-gray-900 flex-1">{group.name}</h3>
+              <button
+                key={group.id}
+                onClick={() => router.push(`/group/${group.id}`)}
+                className="relative bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 cursor-pointer h-full text-left hover:bg-gray-50"
+              >
+                {group.pendingCount > 0 && (
+                  <div
+                    className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center"
+                    title={`${group.pendingCount} payment${group.pendingCount !== 1 ? 's' : ''} need your approval`}
+                  >
+                    {group.pendingCount}
                   </div>
-                  {group.description && (
-                    <p className="text-gray-600 text-sm mb-4">{group.description}</p>
-                  )}
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
-                    <span>{group.paymentCount} payment{group.paymentCount !== 1 ? 's' : ''}</span>
-                  </div>
+                )}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-4xl">{group.emoji}</span>
+                  <h3 className="text-xl font-bold text-gray-900 flex-1">{group.name}</h3>
                 </div>
-              </Link>
+                {group.description && (
+                  <p className="text-gray-600 text-sm mb-4">{group.description}</p>
+                )}
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
+                  <span>{group.paymentCount} payment{group.paymentCount !== 1 ? 's' : ''}</span>
+                </div>
+              </button>
             ))}
           </div>
         )}

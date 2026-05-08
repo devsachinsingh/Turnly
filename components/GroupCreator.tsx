@@ -29,21 +29,39 @@ export function GroupCreator({ onGroupCreated }: GroupCreatorProps) {
     setLoading(true);
     setError('');
 
-    const res = await fetch('/api/groups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description: description.trim(), emoji: selectedEmoji }),
-    });
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: description.trim(), emoji: selectedEmoji }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? 'Something went wrong');
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? 'Something went wrong');
+        setLoading(false);
+        return;
+      }
+
+      const newGroup = await res.json();
+      // Ensure the group object has all required GroupSummary fields
+      const groupSummary: GroupSummary = {
+        id: newGroup.id,
+        name: newGroup.name,
+        description: newGroup.description,
+        emoji: newGroup.emoji,
+        code: newGroup.code,
+        isRandomMode: newGroup.isRandomMode ?? false,
+        createdAt: newGroup.createdAt ?? new Date().toISOString(),
+        memberCount: newGroup.memberCount ?? 1,
+        paymentCount: newGroup.paymentCount ?? 0,
+        pendingCount: newGroup.pendingCount ?? 0,
+      };
+      onGroupCreated(groupSummary);
+    } catch (err) {
+      setError('Failed to create group');
       setLoading(false);
-      return;
     }
-
-    const newGroup: GroupSummary = await res.json();
-    onGroupCreated(newGroup);
   };
 
   return (
