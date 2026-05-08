@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import type { GroupDetail } from '@/lib/types';
 import { CurrentTurn } from '@/components/CurrentTurn';
 import { GroupInfo } from '@/components/GroupInfo';
@@ -9,6 +10,7 @@ import { MembersList } from '@/components/MembersList';
 import { PaymentHistory } from '@/components/PaymentHistory';
 import { MarkAsPaidButton } from '@/components/MarkAsPaidButton';
 import { RandomModeToggle } from '@/components/RandomModeToggle';
+import { PendingApprovals } from '@/components/PendingApprovals';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,8 +18,11 @@ import { useRouter } from 'next/navigation';
 export default function GroupPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const currentUserId = session?.user?.id ?? '';
 
   useEffect(() => {
     fetch(`/api/groups/${id}`)
@@ -28,8 +33,6 @@ export default function GroupPage() {
       .then((data) => data && setGroup(data))
       .catch(() => router.push('/dashboard'));
   }, [id, router]);
-
-  const handlePaymentMarked = (updated: GroupDetail) => setGroup(updated);
 
   const handleToggleRandomMode = async () => {
     if (!group) return;
@@ -77,8 +80,9 @@ export default function GroupPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <CurrentTurn group={group} />
-            <MarkAsPaidButton group={group} onPaymentMarked={handlePaymentMarked} />
+            <CurrentTurn group={group} currentUserId={currentUserId} />
+            <PendingApprovals group={group} currentUserId={currentUserId} onUpdate={setGroup} />
+            <MarkAsPaidButton group={group} currentUserId={currentUserId} onPaymentMarked={setGroup} />
             <RandomModeToggle group={group} onToggle={handleToggleRandomMode} />
             <PaymentHistory history={group.paymentHistory} />
           </div>

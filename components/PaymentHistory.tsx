@@ -23,6 +23,7 @@ export function PaymentHistory({ history }: PaymentHistoryProps) {
             <thead className="border-b-2 border-gray-200">
               <tr>
                 <th className="text-left py-3 px-3 font-semibold text-gray-700">Who</th>
+                <th className="text-left py-3 px-3 font-semibold text-gray-700">Amount</th>
                 <th className="text-left py-3 px-3 font-semibold text-gray-700">Date</th>
                 <th className="text-left py-3 px-3 font-semibold text-gray-700">Description</th>
               </tr>
@@ -31,6 +32,7 @@ export function PaymentHistory({ history }: PaymentHistoryProps) {
               {sorted.map((record) => (
                 <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-3 font-semibold text-gray-900">{record.memberName}</td>
+                  <td className="py-3 px-3 text-green-700 font-medium">₹{record.amount.toFixed(2)}</td>
                   <td className="py-3 px-3 text-gray-600">
                     {new Date(record.paidAt).toLocaleDateString()}
                   </td>

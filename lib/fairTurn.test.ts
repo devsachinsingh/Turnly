@@ -7,7 +7,7 @@ const bob: Member = { id: 'u2', name: 'Bob', joinedAt: '2024-01-01T00:00:00.000Z
 const carol: Member = { id: 'u3', name: 'Carol', joinedAt: '2024-01-01T00:00:00.000Z' };
 
 function payment(memberId: string, paidAt: string): PaymentRecord {
-  return { id: `p-${memberId}-${paidAt}`, memberId, memberName: memberId, paidAt, description: null };
+  return { id: `p-${memberId}-${paidAt}`, memberId, memberName: memberId, paidAt, description: null, amount: 0, status: 'approved' };
 }
 
 describe('getNextFairPayer', () => {
