@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { groups, groupMembers, paymentRecords, users } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-import { getNextFairPayer } from '@/lib/fairTurn';
-import { getRandomPayer } from '@/lib/randomTurn';
-import type { Member, PaymentRecord } from '@/lib/types';
+import { groups, groupMembers } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { buildGroupDetail } from '@/lib/groupDetail';
 
 async function requireMembership(groupId: string, userId: string) {
   const [row] = await db
@@ -14,43 +12,6 @@ async function requireMembership(groupId: string, userId: string) {
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
     .limit(1);
   return !!row;
-}
-
-async function buildGroupDetail(groupId: string) {
-  const [group] = await db.select().from(groups).where(eq(groups.id, groupId)).limit(1);
-  if (!group) return null;
-
-  const memberRows = await db
-    .select({ id: users.id, name: users.name, joinedAt: groupMembers.joinedAt })
-    .from(groupMembers)
-    .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(eq(groupMembers.groupId, groupId));
-
-  const paymentRows = await db
-    .select()
-    .from(paymentRecords)
-    .where(eq(paymentRecords.groupId, groupId))
-    .orderBy(desc(paymentRecords.paidAt));
-
-  const members: Member[] = memberRows.map((m) => ({
-    id: m.id,
-    name: m.name ?? '',
-    joinedAt: m.joinedAt?.toISOString() ?? new Date().toISOString(),
-  }));
-
-  const paymentHistory: PaymentRecord[] = paymentRows.map((p) => ({
-    id: p.id,
-    memberId: p.userId ?? '',
-    memberName: p.memberName,
-    paidAt: p.paidAt.toISOString(),
-    description: p.description,
-  }));
-
-  const nextPayer = group.isRandomMode
-    ? getRandomPayer(members)
-    : getNextFairPayer(members, paymentHistory);
-
-  return { ...group, members, paymentHistory, nextPayer };
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
