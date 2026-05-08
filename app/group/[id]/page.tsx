@@ -27,7 +27,9 @@ export default function GroupPage() {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [copied, setCopied] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const currentUserId = session?.user?.id ?? '';
 
@@ -77,10 +79,22 @@ export default function GroupPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const creatorId = group
+    ? [...group.members].sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime())[0]?.id
+    : undefined;
+  const isCreator = !!creatorId && creatorId === currentUserId;
+
   const handleLeave = async () => {
     if (!group) return;
     setLeaving(true);
     await fetch(`/api/groups/${group.id}`, { method: 'DELETE' });
+    router.push('/dashboard');
+  };
+
+  const handleDelete = async () => {
+    if (!group) return;
+    setDeleting(true);
+    await fetch(`/api/groups/${group.id}?force=true`, { method: 'DELETE' });
     router.push('/dashboard');
   };
 
@@ -122,13 +136,32 @@ export default function GroupPage() {
               </div>
             )}
             <MembersList members={group.members} paymentHistory={group.paymentHistory} />
-            <Button
-              variant="outline"
-              className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={() => setShowLeaveConfirm(true)}
-            >
-              Leave Group
-            </Button>
+            {isCreator ? (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete Group
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full text-gray-500 hover:text-gray-700 text-sm"
+                  onClick={() => setShowLeaveConfirm(true)}
+                >
+                  Leave Group
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setShowLeaveConfirm(true)}
+              >
+                Leave Group
+              </Button>
+            )}
           </div>
         </div>
       </main>
@@ -158,6 +191,34 @@ export default function GroupPage() {
               disabled={leaving}
             >
               {leaving ? 'Leaving…' : 'Leave'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete &quot;{group.name}&quot;?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 mt-1">
+            This will permanently delete the group and all its payment history for <strong>all {group.members.length} member{group.members.length !== 1 ? 's' : ''}</strong>. This cannot be undone.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete Group'}
             </Button>
           </div>
         </DialogContent>

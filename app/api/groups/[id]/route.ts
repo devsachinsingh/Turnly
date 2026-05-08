@@ -51,13 +51,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(detail);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
   const isMember = await requireMembership(id, session.user.id);
   if (!isMember) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const force = req.nextUrl.searchParams.get('force') === 'true';
+
+  if (force) {
+    const [earliest] = await db
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, id))
+      .orderBy(groupMembers.joinedAt)
+      .limit(1);
+
+    if (earliest?.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Only the group creator can delete the group' }, { status: 403 });
+    }
+
+    await db.delete(groups).where(eq(groups.id, id));
+    return NextResponse.json({ ok: true });
+  }
 
   await db
     .delete(groupMembers)
